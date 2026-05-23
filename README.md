@@ -3,7 +3,7 @@
 Tiny macOS helper for double-RDP sessions where the clipboard does not pass
 through. `Cmd+C` copies normally; pressing **`Cmd+Shift+V`** types the
 clipboard contents as synthetic keystrokes that the remote session sees as
-ordinary typed input.
+ordinary typed input. `ESC` break typing.
 
 Packaged as a standalone `.app` bundle so macOS Accessibility / Input
 Monitoring permissions are granted to **CopyPaste.app only** — not to your
@@ -11,17 +11,11 @@ terminal. Lives in the menu bar (`⌘V` icon) with a Quit menu item.
 
 ## Build the .app
 
-> **Python version:** use **3.12 or 3.13**. Python 3.14 currently breaks
-> `py2app`'s code-signing step because of static stub archives shipped with
-> the bundled Tcl/Tk 9.0 framework. Install with `brew install python@3.12`
-> if needed.
-
 ```sh
-cd /Users/konrad.zbylut/utilities/CopyPaste
-python3.12 -m venv .venv
+cd CopyPaste
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install py2app
 python setup.py py2app
 ```
 
@@ -46,9 +40,6 @@ CopyPaste.app needs two permissions:
 
 - **Accessibility** — to inject keystrokes.
 - **Input Monitoring** — to listen for the global hotkey.
-
-These are now scoped to **CopyPaste.app** specifically — your terminal stays
-unprivileged.
 
 ### Easy path (let macOS prompt you)
 
@@ -80,47 +71,16 @@ unprivileged.
 **After toggling either permission**, fully quit CopyPaste (menu bar `⌘V`
 icon → **Quit CopyPaste**) and relaunch it.
 
-## Autostart at login
-
-System Settings → **General** → **Login Items & Extensions** → under
-*Open at Login*, click **+** and add `/Applications/CopyPaste.app`.
-
 ## Quit
 
 Click the `⌘V` menu bar icon → **Quit CopyPaste**.
 
 Or from a terminal: `killall CopyPaste`.
 
-## Verifying it worked
-
-1. `Cmd+C` some text from any window.
-2. Click into TextEdit (or any text field).
-3. Press `Cmd+Shift+V`. The clipboard contents should appear, typed
-   character-by-character.
-
 ## Keyboard layout across RDP
 
 Mismatched keyboard layouts between macOS and the remote machine can scramble
-punctuation (e.g., `.` arriving as `,`). Setting **US layout on both sides**
-fixes it.
-
-## macOS text-substitution gotcha
-
-macOS replaces double-space with `. ` by default, so a typed `[a  b]`
-arrives as `[a. b]`. Disable it once and you're done:
-
-System Settings → **Keyboard** → **Text Input** → **Edit…** → uncheck
-**"Add period with double-space"**.
-
-If you also see straight quotes turning curly (`"` → `"`), uncheck
-**"Use smart quotes and dashes"** in the same dialog, or per-app via
-**Edit → Substitutions**.
-
-## Tuning
-
-If characters get dropped on slow remote sessions, raise `PER_CHAR_DELAY` in
-`copypaste.py` (default `0.008` = 8 ms; `0.015` is a safe fallback), then
-rebuild: `python3 setup.py py2app`.
+punctuation (e.g., `.` arriving as `,`). Setting same layout on both sides e.g. **US** fixes it.
 
 ## Troubleshooting
 
@@ -131,16 +91,3 @@ rebuild: `python3 setup.py py2app`.
 - **Rebuild fails with stale-cache errors:** delete `build/` and `dist/`, then re-run `python setup.py py2app`.
 - **`codesign` fails on `libtkstub.a` / `libtclstub.a` (`RuntimeError: Cannot sign bundle`):** you're on Python 3.14. `py2app`'s ad-hoc signing can't sign Tcl/Tk 9.0's static archives. Rebuild the venv with Python **3.12** or **3.13** (`brew install python@3.12`).
 
-## Development mode (faster iteration)
-
-For quick iteration without rebuilding the full bundle each time:
-
-```sh
-python3 setup.py py2app -A
-```
-
-The `-A` flag makes an *alias* bundle that references `copypaste.py` in
-place. Edits take effect immediately on relaunch. Not portable — only valid
-on your machine — but ideal during development. Permissions are still
-granted to the alias bundle, separately from the production one, so
-re-grant after switching modes.
